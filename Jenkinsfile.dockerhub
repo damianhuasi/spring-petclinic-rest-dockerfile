@@ -18,14 +18,14 @@ pipeline {
             agent {
                 docker {
                     image 'docker:29.4.0-cli'
-                    // args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
-                    args '--group-add 988 -v /var/run/docker.sock:/var/run/docker.sock'
+                    args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
+                    //args '--group-add 988 -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
-            environment {
-                DOCKER_CONFIG = "${WORKSPACE}/.docker"
-                DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-            }            
+            // environment {
+            //     DOCKER_CONFIG = "${WORKSPACE}/.docker"
+            //     DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+            // }            
             options { skipDefaultCheckout() }
             steps {
                 // sh 'ls -la'
@@ -34,19 +34,19 @@ pipeline {
 
                 script {
 
-                    def pom = readMavenPom file: 'pom.xml'
-                    def image = "danycenas/${pom.artifactId}"
+                    // def pom = readMavenPom file: 'pom.xml'
+                    // def image = "danycenas/${pom.artifactId}"
 
                     // Forma 1: Usando comandos Docker directamente
 
-                    sh 'docker build --help'
-                    sh "docker build -t ${image}:${pom.version} . -t ${image}:latest"
-                    sh 'docker images'
+                    // sh 'docker build --help'
+                    // sh "docker build -t ${image}:${pom.version} . -t ${image}:latest"
+                    // sh 'docker images'
 
-                    sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
-                    sh "docker push ${image}:${pom.version}"
-                    sh "docker push ${image}:latest"
-                    sh 'docker logout'
+                    // sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
+                    // sh "docker push ${image}:${pom.version}"
+                    // sh "docker push ${image}:latest"
+                    // sh 'docker logout'
 
                     // Forma 2: Usando el plugin de Docker de Jenkins
 
