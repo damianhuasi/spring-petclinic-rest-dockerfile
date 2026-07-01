@@ -43,8 +43,7 @@ pipeline {
 
         stage('Package') {
             steps {
-                sh 'mvn package -DskipTests -B -ntp'
-                sh 'ls -lh target'
+                sh 'mvn package -DskipTests -B -ntp' 
             }
         }
 
@@ -69,34 +68,24 @@ pipeline {
                 sh 'docker version'
                 sh 'docker info'
 
-                sh 'ls -la'
-                sh 'ls -la target'
+                //sh 'ls -la'
+                //sh 'ls -la target'
 
                 script {
 
                     def pom = readMavenPom file: 'pom.xml'
-
                     def image = "eloydamian/${pom.artifactId}"
 
-                    echo "Imagen: ${image}"
-                    echo "Versión: ${pom.version}"
+                    // Forma 1: Usando comandos Docker directamente
 
-                    sh """
-                        docker build \
-                        -t ${image}:${pom.version} \
-                        -t ${image}:latest .
-                    """
+                    sh 'docker build --help'
+                    sh "docker build -t ${image}:${pom.version} . -t ${image}:latest"
+                    sh 'docker images'
 
-                    sh """
-                        echo "${DOCKERHUB_PSW}" | docker login \
-                        -u "${DOCKERHUB_USR}" \
-                        --password-stdin
-                    """
-
+                    sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
                     sh "docker push ${image}:${pom.version}"
                     sh "docker push ${image}:latest"
-
-                    sh "docker logout"
+                    sh 'docker logout'
                 }
             }
         }
