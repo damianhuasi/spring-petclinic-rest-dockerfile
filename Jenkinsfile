@@ -8,7 +8,7 @@ pipeline {
 
     stages {
  
-        stage{
+        stage('CI') {
 
             agent {
                 docker {
