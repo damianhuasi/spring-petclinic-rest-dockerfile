@@ -1,5 +1,4 @@
 pipeline {
-
     agent none
 
     environment {
@@ -8,50 +7,51 @@ pipeline {
     }
 
     stages {
+ 
+        stage{
 
-        stage('Build') {
             agent {
                 docker {
                     image 'maven:3.9.16-amazoncorretto-21'
                 }
             }
-            steps {
-                checkout scm
-                sh 'mvn clean compile -B -ntp'
+
+            stages {
+
+                stage('Build') {
+                    steps {
+                        checkout scm
+                        sh 'mvn clean compile -B -ntp'
+                    }
+                }
+
+                stage('Testing (JUnit + JaCoCo)') {
+                    steps {
+                        sh 'mvn test jacoco:report -B -ntp'
+                    }
+                    post {
+                        always {
+                            junit 'target/surefire-reports/*.xml'
+                        }
+                    }
+                }
+
+                stage('SonarQube') {
+                    steps {
+                        withSonarQubeEnv('sonarqube') {
+                            sh 'mvn sonar:sonar -B -ntp'
+                        }
+                    }
+                }
+
+                stage('Package') {
+                    steps {
+                        sh 'mvn package -DskipTests -B -ntp'
+                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    }
+                }
             }
         }
-
-        stage('Testing (JUnit + JaCoCo)') {
-            agent {
-                docker {
-                    image 'maven:3.9.16-amazoncorretto-21'
-                }
-            }
-            steps {
-                checkout scm
-                sh 'mvn test jacoco:report -B -ntp'
-            }
-            post {
-                always {
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
-        }
-
-        stage('Sonar') {
-            agent {
-                docker {
-                    image 'maven:3.9.16-amazoncorretto-21'
-                }
-            }
-            steps {
-                checkout scm
-                withSonarQubeEnv('sonarqube') {
-                    sh 'mvn sonar:sonar -B -ntp'
-                }
-            }
-        }
-
         stage('DockerHub') {
             agent {
                 docker {
@@ -61,11 +61,15 @@ pipeline {
             }
 
             environment {
-                DOCKERHUB = credentials('dockerhub-credentials')
+                DOCKER_CONFIG = "${WORKSPACE}/.docker"
+                DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
             }
-            options { skipDefaultCheckout() }
 
-            steps {  
+            options { skipDefaultCheckout() }            
+            steps {
+                sh 'docker --version'
+                sh 'docker images'
+
                 script {
 
                     def pom = readMavenPom file: 'pom.xml'
@@ -83,12 +87,12 @@ pipeline {
                     sh 'docker logout'
                 }
             }
-
-            post {
-                always {
-                    cleanWs()
-                }
-            }
         }
     }
+
+    // post {
+    //     always {
+    //         cleanWs()
+    //     }
+    // }
 }
