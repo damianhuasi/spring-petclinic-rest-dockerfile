@@ -60,11 +60,9 @@ pipeline {
                 DOCKER_CONFIG = "${WORKSPACE}/.docker"
                 DOCKERHUB = credentials('dockerhub-credentials')
             }
-
+            options { skipDefaultCheckout() }
             steps {
-
-                checkout scm
-
+ 
                 sh 'docker version'
                 sh 'docker info'
 
