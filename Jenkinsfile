@@ -63,8 +63,9 @@ pipeline {
             options { skipDefaultCheckout() }
             steps {
  
-                sh 'docker version'
-                sh 'docker info'
+                sh 'docker --version'
+                sh 'docker images'
+
 
                 //sh 'ls -la'
                 //sh 'ls -la target'
