@@ -65,10 +65,7 @@ pipeline {
             }
             options { skipDefaultCheckout() }
 
-            steps { 
- 
-                sh 'mvn clean package -DskipTests -B -ntp'
-
+            steps {  
                 script {
 
                     def pom = readMavenPom file: 'pom.xml'
@@ -87,11 +84,11 @@ pipeline {
                 }
             }
 
-            // post {
-            //     always {
-            //         cleanWs()
-            //     }
-            // }
+            post {
+                always {
+                    cleanWs()
+                }
+            }
         }
     }
 }
