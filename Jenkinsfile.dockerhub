@@ -1,0 +1,85 @@
+pipeline {
+    agent none
+    stages {
+        stage('Package') {
+            agent {
+                docker {
+                    image 'maven:3.9.15-eclipse-temurin-21'
+                }
+            }
+            environment {
+                MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
+            }
+            steps {
+                sh 'mvn clean package -B -ntp -DskipTests'
+            }
+        }       
+        stage('DockerHub') {
+            agent {
+                docker {
+                    image 'docker:29.4.0-cli'
+                    // args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
+                    args '--group-add 988 -v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
+            environment {
+                DOCKER_CONFIG = "${WORKSPACE}/.docker"
+                DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+            }            
+            options { skipDefaultCheckout() }
+            steps {
+                // sh 'ls -la'
+                sh 'docker --version'
+                sh 'docker images'
+
+                script {
+
+                    def pom = readMavenPom file: 'pom.xml'
+                    def image = "danycenas/${pom.artifactId}"
+
+                    // Forma 1: Usando comandos Docker directamente
+
+                    sh 'docker build --help'
+                    sh "docker build -t ${image}:${pom.version} . -t ${image}:latest"
+                    sh 'docker images'
+
+                    sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
+                    sh "docker push ${image}:${pom.version}"
+                    sh "docker push ${image}:latest"
+                    sh 'docker logout'
+
+                    // Forma 2: Usando el plugin de Docker de Jenkins
+
+                    // def app = docker.build("${image}:${pom.version}")
+                    // docker.withRegistry('https://registry.hub.docker.com/', 'dockerhub-credentials') {
+                    //     app.push()
+                    //     app.push('latest')
+                    // }
+
+                    // Forma 3: Usando docker buildx para multiplatforma
+                    
+                    // sh 'docker run --privileged --rm tonistiigi/binfmt --install all'
+                    // sh 'docker buildx create --use'
+                    // sh 'docker buildx inspect --bootstrap'
+
+                    // sh 'docker buildx version'
+
+                    // withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    //     sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+                    //     sh """
+                    //         docker buildx build \
+                    //             -t ${image}:${pom.version} \
+                    //             -t ${image}:latest \
+                    //             --platform linux/amd64,linux/arm64 --push .
+                    //     """
+                    // }
+                }
+            }
+        }        
+    }
+    // post { 
+    //     cleanup {
+    //         cleanWs()
+    //     }
+    // }
+}
