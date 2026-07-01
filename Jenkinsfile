@@ -89,14 +89,14 @@ pipeline {
         }
     }
 
-    post {
+    // post {
 
-        success {
-            archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-        }
+    //     success {
+    //         archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+    //     }
 
-        always {
-            cleanWs()
-        }
-    }
+    //     always {
+    //         cleanWs()
+    //     }
+    // }
 }
