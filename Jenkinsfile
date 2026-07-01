@@ -51,7 +51,7 @@ pipeline {
 
             agent {
                 docker {
-                    image 'docker:28-cli'
+                    image 'docker:29.4.0-cli'
                     args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -60,15 +60,13 @@ pipeline {
                 DOCKER_CONFIG = "${WORKSPACE}/.docker"
                 DOCKERHUB = credentials('dockerhub-credentials')
             }
+
             options { skipDefaultCheckout() }
+
             steps {
  
                 sh 'docker --version'
-                sh 'docker images'
-
-
-                //sh 'ls -la'
-                //sh 'ls -la target'
+                sh 'docker images' 
 
                 script {
 
