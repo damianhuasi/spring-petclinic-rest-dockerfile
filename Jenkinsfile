@@ -1,5 +1,10 @@
 pipeline {
+
     agent none
+
+    triggers {
+        githubPush()
+    }
 
     environment {
         MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
@@ -7,8 +12,8 @@ pipeline {
     }
 
     stages {
- 
-        stage('CI') {
+
+        stage('Maven') {
 
             agent {
                 docker {
@@ -18,9 +23,14 @@ pipeline {
 
             stages {
 
-                stage('Build') {
+                stage('Checkout') {
                     steps {
                         checkout scm
+                    }
+                }
+
+                stage('Build') {
+                    steps {
                         sh 'mvn clean compile -B -ntp'
                     }
                 }
@@ -47,12 +57,15 @@ pipeline {
                 stage('Package') {
                     steps {
                         sh 'mvn package -DskipTests -B -ntp'
+
                         archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                     }
                 }
             }
         }
+
         stage('DockerHub') {
+
             agent {
                 docker {
                     image 'docker:29.4.0-cli'
@@ -65,11 +78,11 @@ pipeline {
                 DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
             }
 
+            options {
+                skipDefaultCheckout()
+            }
+
             steps {
-
-                checkout scm
-
-                unstash 'package'
 
                 sh 'docker --version'
                 sh 'docker images'
@@ -77,11 +90,7 @@ pipeline {
                 script {
 
                     def pom = readMavenPom file: 'pom.xml'
-
                     def image = "eloydamian/${pom.artifactId}"
-
-                    echo "Imagen: ${image}"
-                    echo "Version: ${pom.version}"
 
                     sh """
                         docker build \
@@ -89,25 +98,23 @@ pipeline {
                         -t ${image}:latest .
                     """
 
-                    sh """
-                        echo "${DOCKERHUB_CREDENTIALS_PSW}" | \
-                        docker login \
-                        -u "${DOCKERHUB_CREDENTIALS_USR}" \
-                        --password-stdin
-                    """
+                    sh '''
+                        echo "$DOCKERHUB_CREDENTIALS_PSW" | \
+                        docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin
+                    '''
 
                     sh "docker push ${image}:${pom.version}"
                     sh "docker push ${image}:latest"
 
-                    sh "docker logout"
+                    sh 'docker logout'
                 }
             }
+
+            // post {
+            //     always {
+            //         cleanWs()
+            //     }
+            // }
         }
     }
-
-    // post {
-    //     always {
-    //         cleanWs()
-    //     }
-    // }
 }
