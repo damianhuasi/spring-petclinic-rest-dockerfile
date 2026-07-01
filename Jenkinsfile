@@ -1,86 +1,57 @@
 pipeline {
     agent none
 
-    triggers {
-        githubPush()
+    environment {
+        MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
+        SONAR_USER_HOME = "${WORKSPACE}/.sonar"
     }
 
     stages {
+ 
+        stage('CI') {
 
-        stage('Build') {
             agent {
                 docker {
                     image 'maven:3.9.16-amazoncorretto-21'
                 }
             }
-            environment {
-                MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
-            }
-            steps {
-                checkout scm
-                sh 'mvn clean compile -B -ntp'
-            }
-        }
 
-        stage('Testing (JUnit + JaCoCo)') {
-            agent {
-                docker {
-                    image 'maven:3.9.16-amazoncorretto-21'
-                }
-            }
-            environment {
-                MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
-            }
-            steps {
-                checkout scm
-                sh 'mvn test jacoco:report -B -ntp'
-            }
-            post {
-                always {
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
-        }
+            stages {
 
-        stage('SonarQube') {
-            agent {
-                docker {
-                    image 'maven:3.9.16-amazoncorretto-21'
+                stage('Build') {
+                    steps {
+                        checkout scm
+                        sh 'mvn clean compile -B -ntp'
+                    }
                 }
-            }
-            environment {
-                MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
-                SONAR_USER_HOME = "${WORKSPACE}/.sonar"
-            }
-            steps {
-                checkout scm
 
-                withSonarQubeEnv('sonarqube') {
-                    sh 'mvn sonar:sonar -B -ntp'
+                stage('Testing (JUnit + JaCoCo)') {
+                    steps {
+                        sh 'mvn test jacoco:report -B -ntp'
+                    }
+                    post {
+                        always {
+                            junit 'target/surefire-reports/*.xml'
+                        }
+                    }
+                }
+
+                stage('SonarQube') {
+                    steps {
+                        withSonarQubeEnv('sonarqube') {
+                            sh 'mvn sonar:sonar -B -ntp'
+                        }
+                    }
+                }
+
+                stage('Package') {
+                    steps {
+                        sh 'mvn package -DskipTests -B -ntp'
+                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    }
                 }
             }
         }
-
-        stage('Package') {
-            agent {
-                docker {
-                    image 'maven:3.9.16-amazoncorretto-21'
-                }
-            }
-            environment {
-                MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
-            }
-            steps {
-                checkout scm
-
-                sh 'mvn clean package -B -ntp -DskipTests'
-
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-
-                stash includes: 'target/**,Dockerfile,pom.xml', name: 'package'
-            }
-        }
-
         stage('DockerHub') {
             agent {
                 docker {
