@@ -48,10 +48,9 @@ pipeline {
             steps {
                 sh 'mvn package -DskipTests -B -ntp'
             }
-        }       
-              
-    }
-     stage('DockerHub') {
+        } 
+
+        stage('DockerHub') {
             agent {
                 docker {
                     image 'docker:29.4.0-cli'
@@ -84,7 +83,9 @@ pipeline {
                     sh 'docker logout' 
                 }
             }
-        } 
+        }         
+    }
+     
 
     post { 
         success {
