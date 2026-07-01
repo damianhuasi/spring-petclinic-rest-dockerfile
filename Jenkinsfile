@@ -51,6 +51,41 @@ pipeline {
         }       
               
     }
+     stage('DockerHub') {
+            agent {
+                docker {
+                    image 'docker:29.4.0-cli'
+                    args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock' 
+                }
+            }
+            environment {
+                DOCKER_CONFIG = "${WORKSPACE}/.docker"
+                DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+            }            
+            options { skipDefaultCheckout() }
+            steps {
+                // sh 'ls -la'
+                sh 'docker --version'
+                sh 'docker images'
+
+                script {
+
+                    def pom = readMavenPom file: 'pom.xml'
+                    def image = "eloydamian/${pom.artifactId}"
+ 
+
+                    sh 'docker build --help'
+                    sh "docker build -t ${image}:${pom.version} . -t ${image}:latest"
+                    sh 'docker images'
+
+                    sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
+                    sh "docker push ${image}:${pom.version}"
+                    sh "docker push ${image}:latest"
+                    sh 'docker logout' 
+                }
+            }
+        } 
+
     post { 
         success {
             archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
