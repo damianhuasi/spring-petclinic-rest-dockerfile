@@ -1,9 +1,6 @@
 pipeline {
-    agent none
 
-    triggers {
-        githubPush()
-    }
+    agent none
 
     environment {
         MAVEN_OPTS = "-Dmaven.repo.local=${WORKSPACE}/.m2"
@@ -41,7 +38,7 @@ pipeline {
             }
         }
 
-        stage('Sonarqube') {
+        stage('Sonar') {
             agent {
                 docker {
                     image 'maven:3.9.16-amazoncorretto-21'
@@ -49,7 +46,6 @@ pipeline {
             }
             steps {
                 checkout scm
-
                 withSonarQubeEnv('sonarqube') {
                     sh 'mvn sonar:sonar -B -ntp'
                 }
@@ -65,46 +61,33 @@ pipeline {
             }
 
             environment {
-                DOCKER_CONFIG = "${WORKSPACE}/.docker"
-                DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+                DOCKERHUB = credentials('dockerhub-credentials')
             }
-
-            options {
-                skipDefaultCheckout()
-            }
-
-            steps {
-
-                sh 'docker --version'
+            options { skipDefaultCheckout() }
+            
+            steps { 
+ 
+                sh 'mvn clean package -DskipTests -B -ntp'
 
                 script {
 
                     def pom = readMavenPom file: 'pom.xml'
                     def image = "eloydamian/${pom.artifactId}"
 
-                    sh """
-                        docker build \
-                        -t ${image}:${pom.version} \
-                        -t ${image}:latest .
-                    """
+                    // Forma 1: Usando comandos Docker directamente
 
-                    sh '''
-                        echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login \
-                        -u "$DOCKERHUB_CREDENTIALS_USR" \
-                        --password-stdin
-                    '''
+                    sh 'docker build --help'
+                    sh "docker build -t ${image}:${pom.version} . -t ${image}:latest"
+                    sh 'docker images'
 
+                    sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
                     sh "docker push ${image}:${pom.version}"
                     sh "docker push ${image}:latest"
-
                     sh 'docker logout'
                 }
             }
 
             post {
-                success {
-                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-                }
                 always {
                     cleanWs()
                 }
