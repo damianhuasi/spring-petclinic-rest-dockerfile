@@ -64,7 +64,7 @@ pipeline {
                 DOCKERHUB = credentials('dockerhub-credentials')
             }
             options { skipDefaultCheckout() }
-            
+
             steps { 
  
                 sh 'mvn clean package -DskipTests -B -ntp'
@@ -87,11 +87,11 @@ pipeline {
                 }
             }
 
-            post {
-                always {
-                    cleanWs()
-                }
-            }
+            // post {
+            //     always {
+            //         cleanWs()
+            //     }
+            // }
         }
     }
 }
